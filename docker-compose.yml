@@ -1,0 +1,53 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/twotalk
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      SESSION_TOKEN_SECRET: ${SESSION_TOKEN_SECRET:-development-session-secret-change-me}
+      INVITATION_TOKEN_SECRET: ${INVITATION_TOKEN_SECRET:-development-invitation-secret-change-me}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      - backend
+
+  postgres:
+    build:
+      context: .
+      dockerfile: docker/postgres/Dockerfile
+    environment:
+      POSTGRES_DB: twotalk
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d twotalk"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  frontend_node_modules:
+  postgres_data:

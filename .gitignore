@@ -1,0 +1,80 @@
+# Environment files and local secrets
+.env
+.env.*
+!.env.example
+!**/.env.example
+backend/.env
+frontend/.env
+*.secret
+*.secrets
+secrets.json
+secrets.*.json
+credentials.json
+credentials.*.json
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Python environments, bytecode, caches, and build output
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Node.js and Vite
+node_modules/
+frontend/node_modules/
+frontend/dist/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Playwright
+playwright-report/
+test-results/
+blob-report/
+
+# Databases, local volumes, logs, and runtime files
+*.db
+*.sqlite
+*.sqlite3
+postgres-data/
+postgres_data/
+pgdata/
+logs/
+*.log
+tmp/
+temp/
+
+# Editors, local tooling, and operating systems
+.agents/
+.codex/
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Windows and PowerShell crash artifacts
+*.stackdump
+
+# Docker development overrides
+docker-compose.override.yml

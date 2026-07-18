@@ -1,0 +1,64 @@
+# Version-control and local tooling metadata
+.git
+.agents
+.idea
+.vscode
+
+# Secrets and local environment files
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+*.secret
+*.secrets
+secrets.json
+secrets.*.json
+credentials.json
+credentials.*.json
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Python environments, caches, tests, and reports
+**/.venv
+**/venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/.coverage
+**/.coverage.*
+**/htmlcov
+**/coverage.xml
+**/*.egg-info
+
+# Frontend dependencies and generated output
+**/node_modules
+**/dist
+**/.vite
+**/playwright-report
+**/test-results
+**/blob-report
+
+# Local databases, volumes, logs, and temporary files
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+**/postgres-data
+**/postgres_data
+**/pgdata
+**/logs
+**/*.log
+**/tmp
+**/temp
+
+# Files not needed in application images
+docs
+docker-compose.override.yml
+.DS_Store
+Thumbs.db
+Desktop.ini
