@@ -7,6 +7,7 @@ from app.repositories.invitations import InvitationRepository
 from app.repositories.message_deliveries import MessageDeliveryRepository
 from app.repositories.messages import (
     IncomingMessageProjection,
+    MediatedContextProjection,
     MessageRepository,
     SenderMessageProjection,
 )
@@ -22,6 +23,7 @@ __all__ = [
     "IncomingMessageProjection",
     "InvitationRepository",
     "MessageDeliveryRepository",
+    "MediatedContextProjection",
     "MessageRepository",
     "ParticipantRepository",
     "ParticipantSessionRepository",

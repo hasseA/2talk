@@ -41,6 +41,28 @@ class AIProcessingAttemptRepository(BaseRepository[AIProcessingAttempt]):
         )
         return await self.session.scalar(statement)
 
+    async def get_by_id_for_update(
+        self, attempt_id: UUID
+    ) -> AIProcessingAttempt | None:
+        statement = (
+            select(AIProcessingAttempt)
+            .where(AIProcessingAttempt.id == attempt_id)
+            .with_for_update()
+        )
+        return await self.session.scalar(statement)
+
+    async def get_latest_for_message_for_update(
+        self, message_id: UUID
+    ) -> AIProcessingAttempt | None:
+        statement = (
+            select(AIProcessingAttempt)
+            .where(AIProcessingAttempt.message_id == message_id)
+            .order_by(AIProcessingAttempt.attempt_number.desc())
+            .limit(1)
+            .with_for_update()
+        )
+        return await self.session.scalar(statement)
+
     async def list_by_message(self, message_id: UUID) -> list[AIProcessingAttempt]:
         statement = (
             select(AIProcessingAttempt)

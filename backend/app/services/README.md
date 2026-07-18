@@ -4,4 +4,27 @@ Services own business rules, authorization decisions, cross-repository orchestra
 
 Repositories remain persistence-only and never commit. Join operations serialize on the conversation row before invitation state is reloaded and participant capacity is checked. Message delivery updates the message, delivery row, and participant-specific guidance inside one transaction.
 
-This layer contains no HTTP, authentication middleware, AI calls, or realtime behavior.
+The AI mediation orchestrator is the only service allowed to call `AIProvider`. It
+uses three short phases so external provider latency never holds a PostgreSQL
+transaction or row lock open:
+
+```text
+Message
+  -> claim transaction (lock, validate, create attempt, build safe context)
+  -> release database transaction
+  -> AI provider call
+  -> finalization transaction (lock, verify current attempt, write outcome)
+  -> final state
+```
+
+The message row serializes claims. A current `started` attempt causes duplicate
+workers to return `already_processing`, while terminal messages return an
+idempotent `already_finalized` outcome. The present schema has no claim lease or
+expiry timestamp: if a process dies after claiming and before finalization, the
+message remains processing until an operational recovery mechanism is added in a
+later execution milestone.
+
+The API boundary does not invoke orchestration yet. Message creation and retry
+retain their documented immediate `processing` responses; a later durable
+execution mechanism can call the orchestration service without changing those
+HTTP contracts.

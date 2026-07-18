@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import and_, case, or_, select, update
 
 from app.models import Message, MessageDelivery, MessageStatus, Participant
 from app.repositories.base import BaseRepository
@@ -46,6 +46,15 @@ class IncomingMessageProjection:
     mediated_at: datetime | None
     delivered_at: datetime
     seen_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True)
+class MediatedContextProjection:
+    """A privacy-safe prior turn prepared for the AI mediation context."""
+
+    speaker: str
+    mediated_message: str
+    language: str
 
 
 class MessageRepository(BaseRepository[Message]):
@@ -145,6 +154,45 @@ class MessageRepository(BaseRepository[Message]):
         )
         rows = (await self.session.execute(statement)).all()
         return [IncomingMessageProjection(*row) for row in rows]
+
+    async def list_mediated_context(
+        self,
+        *,
+        conversation_id: UUID,
+        perspective_sender_id: UUID,
+        before_created_at: datetime,
+        before_message_id: UUID,
+        limit: int,
+    ) -> list[MediatedContextProjection]:
+        """Return only prior delivered content, bounded and oldest-first."""
+        statement = (
+            select(
+                case(
+                    (Message.sender_id == perspective_sender_id, "sender"),
+                    else_="recipient",
+                ).label("speaker"),
+                Message.mediated_message,
+                Message.delivered_language,
+            )
+            .where(
+                Message.conversation_id == conversation_id,
+                Message.status == MessageStatus.DELIVERED,
+                Message.mediated_message.is_not(None),
+                Message.delivered_language.is_not(None),
+                or_(
+                    Message.created_at < before_created_at,
+                    and_(
+                        Message.created_at == before_created_at,
+                        Message.id < before_message_id,
+                    ),
+                ),
+            )
+            .order_by(Message.created_at.desc(), Message.id.desc())
+            .limit(limit)
+        )
+        rows = list((await self.session.execute(statement)).all())
+        rows.reverse()
+        return [MediatedContextProjection(*row) for row in rows]
 
     async def mark_delivered(
         self,
