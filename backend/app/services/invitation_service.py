@@ -76,6 +76,7 @@ class InvitationService:
         self,
         *,
         invitation_token: str,
+        conversation_id: UUID | None = None,
         display_name: str,
         preferred_language: str,
         session_expires_at: datetime,
@@ -83,6 +84,7 @@ class InvitationService:
         participant_service = ParticipantService(self.session, self.settings)
         return await participant_service.join_conversation(
             invitation_token_hash=self._hash_invitation_token(invitation_token),
+            expected_conversation_id=conversation_id,
             display_name=display_name,
             preferred_language=preferred_language,
             session_expires_at=session_expires_at,

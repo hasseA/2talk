@@ -5,6 +5,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.errors import register_exception_handlers
+from app.api.main import api_router
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -15,10 +18,12 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     await dispose_engine()
 
 
-app = FastAPI(title="2talk API", lifespan=lifespan)
+def create_app() -> FastAPI:
+    """Construct the FastAPI application and its versioned REST boundary."""
+    application = FastAPI(title="2talk API", lifespan=lifespan)
+    register_exception_handlers(application)
+    application.include_router(api_router)
+    return application
 
 
-@app.get("/health", tags=["system"])
-async def health() -> dict[str, str]:
-    """Report that the application process is running."""
-    return {"status": "ok"}
+app = create_app()

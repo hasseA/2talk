@@ -17,6 +17,10 @@ class ConversationEndedError(ServiceError):
     """The requested operation is not allowed for an ended conversation."""
 
 
+class ConversationAlreadyEndedError(ConversationEndedError):
+    """An end request targeted a conversation that was already ended."""
+
+
 class ConversationStateError(ServiceError):
     """The conversation is not in the required state."""
 
@@ -51,6 +55,18 @@ class DuplicateMessageError(ServiceError):
 
 class MessageStateError(ServiceError):
     """The requested message transition is not valid from its current state."""
+
+
+class ConversationNotActiveError(MessageStateError):
+    """Messages cannot be created or retried outside an active conversation."""
+
+
+class MessageNotRetryableError(MessageStateError):
+    """Only a failed message owned by the participant may be retried."""
+
+
+class InvalidCursorError(ServiceError):
+    """The supplied pagination cursor is not visible in the requested collection."""
 
 
 class SummaryNotFoundError(ServiceError):

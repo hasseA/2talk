@@ -12,6 +12,7 @@ from app.config import Settings
 from app.models import (
     Conversation,
     ConversationStatus,
+    ConversationSummary,
     Invitation,
     Participant,
     ParticipantRole,
@@ -19,11 +20,13 @@ from app.models import (
 )
 from app.repositories import (
     ConversationRepository,
+    ConversationSummaryRepository,
     InvitationRepository,
     ParticipantRepository,
     ParticipantSessionRepository,
 )
 from app.services.exceptions import (
+    ConversationAlreadyEndedError,
     ConversationEndedError,
     ConversationNotFoundError,
     ConversationStateError,
@@ -40,6 +43,14 @@ class CreatedConversation:
     participant_session: ParticipantSession
     invitation_token: str
     session_token: str
+
+
+@dataclass(frozen=True, slots=True)
+class EndedConversation:
+    """Conversation end state and optional queued summary state."""
+
+    conversation: Conversation
+    summary: ConversationSummary | None
 
 
 class ConversationService:
@@ -120,15 +131,30 @@ class ConversationService:
         return conversation
 
     async def end_conversation(self, conversation_id: UUID) -> Conversation:
+        ended = await self.end_conversation_request(
+            conversation_id, generate_summary=False
+        )
+        return ended.conversation
+
+    async def end_conversation_request(
+        self, conversation_id: UUID, *, generate_summary: bool
+    ) -> EndedConversation:
+        """End a conversation and optionally queue its summary atomically."""
         async with self.session.begin():
             repository = ConversationRepository(self.session)
+            summaries = ConversationSummaryRepository(self.session)
             conversation = await repository.get_by_id_for_update(conversation_id)
             if conversation is None:
                 raise ConversationNotFoundError
             if conversation.status is ConversationStatus.ENDED:
-                raise ConversationEndedError
+                raise ConversationAlreadyEndedError
             await repository.set_ended(conversation)
-        return conversation
+            summary = (
+                await summaries.create_processing(conversation_id)
+                if generate_summary
+                else None
+            )
+        return EndedConversation(conversation=conversation, summary=summary)
 
     @staticmethod
     def _secret_value(secret: SecretStr) -> str:

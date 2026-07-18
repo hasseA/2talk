@@ -21,9 +21,11 @@ from app.repositories import (
     PrivateGuidanceRepository,
 )
 from app.services.exceptions import (
+    ConversationNotActiveError,
     ConversationNotFoundError,
     DuplicateMessageError,
     MessageNotFoundError,
+    MessageNotRetryableError,
     MessageStateError,
     ParticipantNotFoundError,
 )
@@ -63,7 +65,7 @@ class MessageLifecycleService:
             if conversation is None:
                 raise ConversationNotFoundError
             if conversation.status is not ConversationStatus.ACTIVE:
-                raise MessageStateError
+                raise ConversationNotActiveError
             if not await participants.participant_belongs_to_conversation(
                 sender_id, conversation_id
             ):
@@ -174,6 +176,35 @@ class MessageLifecycleService:
             updated.status = MessageStatus.PROCESSING
             updated.failure_code = None
             await repository.flush()
+        return updated
+
+    async def retry_failed_message(
+        self, *, conversation_id: UUID, sender_id: UUID, message_id: UUID
+    ) -> Message:
+        """Retry a failed message only for its authenticated original sender."""
+        async with self.session.begin():
+            conversations = ConversationRepository(self.session)
+            messages = MessageRepository(self.session)
+            conversation = await conversations.get_by_id(conversation_id)
+            if conversation is None:
+                raise ConversationNotFoundError
+            if conversation.status is not ConversationStatus.ACTIVE:
+                raise ConversationNotActiveError
+            message = await messages.get_by_id_for_update(message_id)
+            if message is None:
+                raise MessageNotFoundError
+            if message.conversation_id != conversation_id:
+                raise MessageNotFoundError
+            if message.sender_id != sender_id:
+                raise ParticipantNotFoundError
+            if message.status is not MessageStatus.FAILED:
+                raise MessageNotRetryableError
+            updated = await messages.increment_retry_count(message_id)
+            if updated is None:
+                raise MessageNotFoundError
+            updated.status = MessageStatus.PROCESSING
+            updated.failure_code = None
+            await messages.flush()
         return updated
 
     @staticmethod

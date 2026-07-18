@@ -56,6 +56,7 @@ class ParticipantService:
         self,
         *,
         invitation_token_hash: str,
+        expected_conversation_id: UUID | None = None,
         display_name: str,
         preferred_language: str,
         session_expires_at: datetime,
@@ -76,6 +77,11 @@ class ParticipantService:
                 invitation.conversation_id
             )
             if conversation is None:
+                raise ConversationNotFoundError
+            if (
+                expected_conversation_id is not None
+                and conversation.id != expected_conversation_id
+            ):
                 raise ConversationNotFoundError
 
             # A competing join may have changed the invitation while this
