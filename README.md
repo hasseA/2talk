@@ -1,7 +1,30 @@
 # 2talk
 
-2talk is a two-participant conversation MVP with AI-mediated messages, a
-FastAPI backend, a React frontend, and PostgreSQL persistence.
+2talk is an AI communication mediator that helps two people communicate more effectively across language barriers. Instead of simply translating messages, it privately coaches each participant while delivering AI-mediated messages in the recipient's preferred language.
+## Screenshots
+
+### Start a private conversation
+
+![Start](screenshots/start.png)
+
+### English participant
+
+![English Participant](screenshots/english.png)
+
+### Swedish participant
+
+![Swedish Participant](screenshots/swedish.png)
+
+## Features
+
+- AI-mediated conversations
+- Real-time multilingual communication
+- Private AI guidance for each participant
+- Secure invitation links
+- FastAPI backend
+- React frontend
+- PostgreSQL persistence
+- Docker deployment
 
 ## Local/demo development with Docker
 
