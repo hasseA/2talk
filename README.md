@@ -93,3 +93,29 @@ npm audit
 - `docker/`: Container definitions for each service.
 - `scripts/`: Placeholder for development and operational tooling.
 - `docs/`: Existing project documentation.
+
+## Development with OpenAI GPT-5.6 and Codex
+
+2talk was developed with OpenAI GPT-5.6 and Codex acting as AI engineering assistants throughout the project.
+
+### GPT-5.6
+GPT-5.6 was used to:
+- Discuss the overall system architecture.
+- Refine the communication mediation workflow.
+- Design API contracts and data flow.
+- Review implementation decisions.
+- Analyze bugs and propose debugging strategies.
+- Improve documentation and project presentation.
+
+### Codex
+Codex was used to:
+- Generate production-ready frontend and backend code.
+- Refactor React and FastAPI components.
+- Create automated tests.
+- Investigate and fix defects.
+- Review code quality.
+- Validate implementation changes before submission.
+
+One notable example was diagnosing and fixing a frontend rendering issue where polling updates incorrectly replaced a sender's original message with the recipient's translated version. Codex identified the rendering logic, produced the implementation fix, and expanded the regression tests to verify the behavior.
+
+The overall product vision, architecture, feature design, integration, testing, and final validation were directed by the project author, with GPT-5.6 and Codex serving as development assistants throughout the implementation process.
