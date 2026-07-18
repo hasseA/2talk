@@ -293,7 +293,7 @@ function WaitingInvitation({ url }: { url: string }) {
 function MessageItem({ message, guidance, canRetry, onRetry }: { message: VisibleMessage; guidance: Guidance[]; canRetry: boolean; onRetry: () => Promise<void> }) {
   const [retrying, setRetrying] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const text = message.status === "failed" ? "Message processing failed." : message.status === "blocked" ? "This message was blocked and was not delivered." : message.mediated_message ?? (message.direction === "outgoing" ? message.original_message : null)
+  const text = message.direction === "outgoing" ? message.original_message : message.status === "failed" ? "Message processing failed." : message.status === "blocked" ? "This message was blocked and was not delivered." : message.mediated_message
   return (
     <article className={`message ${message.direction}`} data-direction={message.direction}>
       <div className="message-head"><strong>{message.direction === "outgoing" ? "You" : message.sender_display_name}</strong><time dateTime={message.created_at}>{new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time></div>

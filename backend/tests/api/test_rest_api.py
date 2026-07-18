@@ -119,27 +119,30 @@ async def test_message_history_pagination_and_guidance_are_participant_safe(
     first_response = api_client.post(
         f"/api/v1/conversations/{conversation_id}/messages",
         headers=_authorization(created["session_token"]),
-        json={"client_message_id": "client-api-1", "message": "creator raw"},
+        json={
+            "client_message_id": "client-api-1",
+            "message": "Jag behöver fem tysta minuter innan vi fortsätter.",
+        },
     )
     assert first_response.status_code == 202
     first_id = UUID(first_response.json()["data"]["message"]["id"])
     await MessageLifecycleService(db_session).mark_delivered(
         message_id=first_id,
         recipient_id=invitee_id,
-        mediated_message="creator mediated",
+        mediated_message="I need five quiet minutes before we continue.",
         delivered_language="en",
         guidance=(
             GuidanceInput(
                 participant_id=creator_id,
                 audience=GuidanceAudience.SENDER,
                 guidance_type=GuidanceType.COMMUNICATION_SUPPORT,
-                guidance_text="creator-only guidance",
+                guidance_text="creator-only Swedish sender guidance",
             ),
             GuidanceInput(
                 participant_id=invitee_id,
                 audience=GuidanceAudience.RECIPIENT,
                 guidance_type=GuidanceType.DE_ESCALATION,
-                guidance_text="invitee-only guidance",
+                guidance_text="invitee-only English recipient guidance",
             ),
         ),
     )
@@ -147,14 +150,31 @@ async def test_message_history_pagination_and_guidance_are_participant_safe(
     second_response = api_client.post(
         f"/api/v1/conversations/{conversation_id}/messages",
         headers=_authorization(joined["session_token"]),
-        json={"client_message_id": "client-api-2", "message": "invitee raw"},
+        json={
+            "client_message_id": "client-api-2",
+            "message": "I am ready to continue now.",
+        },
     )
     second_id = UUID(second_response.json()["data"]["message"]["id"])
     await MessageLifecycleService(db_session).mark_delivered(
         message_id=second_id,
         recipient_id=creator_id,
-        mediated_message="invitee mediated",
+        mediated_message="Jag är redo att fortsätta nu.",
         delivered_language="sv",
+        guidance=(
+            GuidanceInput(
+                participant_id=invitee_id,
+                audience=GuidanceAudience.SENDER,
+                guidance_type=GuidanceType.COMMUNICATION_SUPPORT,
+                guidance_text="invitee-only English sender guidance",
+            ),
+            GuidanceInput(
+                participant_id=creator_id,
+                audience=GuidanceAudience.RECIPIENT,
+                guidance_type=GuidanceType.CLARIFICATION,
+                guidance_text="creator-only Swedish recipient guidance",
+            ),
+        ),
     )
 
     first_page = api_client.get(
@@ -167,7 +187,12 @@ async def test_message_history_pagination_and_guidance_are_participant_safe(
     assert first_page_data["has_more"] is True
     assert first_page_data["next_cursor"] == str(first_id)
     assert first_page_data["messages"][0]["direction"] == "outgoing"
-    assert first_page_data["messages"][0]["original_message"] == "creator raw"
+    assert first_page_data["messages"][0]["original_message"] == (
+        "Jag behöver fem tysta minuter innan vi fortsätter."
+    )
+    assert first_page_data["messages"][0]["mediated_message"] == (
+        "I need five quiet minutes before we continue."
+    )
 
     second_page = api_client.get(
         f"/api/v1/conversations/{conversation_id}/messages",
@@ -176,17 +201,24 @@ async def test_message_history_pagination_and_guidance_are_participant_safe(
     )
     incoming = second_page.json()["data"]["messages"][0]
     assert incoming["direction"] == "incoming"
-    assert incoming["mediated_message"] == "invitee mediated"
+    assert incoming["mediated_message"] == "Jag är redo att fortsätta nu."
     assert "original_message" not in incoming
 
     recipient_history = api_client.get(
         f"/api/v1/conversations/{conversation_id}/messages",
         headers=_authorization(joined["session_token"]),
     )
-    recipient_first = recipient_history.json()["data"]["messages"][0]
+    recipient_messages = recipient_history.json()["data"]["messages"]
+    recipient_first = recipient_messages[0]
     assert recipient_first["direction"] == "incoming"
-    assert recipient_first["mediated_message"] == "creator mediated"
+    assert recipient_first["mediated_message"] == (
+        "I need five quiet minutes before we continue."
+    )
     assert "original_message" not in recipient_first
+    recipient_second = recipient_messages[1]
+    assert recipient_second["direction"] == "outgoing"
+    assert recipient_second["original_message"] == "I am ready to continue now."
+    assert recipient_second["mediated_message"] == "Jag är redo att fortsätta nu."
 
     creator_guidance = api_client.get(
         f"/api/v1/conversations/{conversation_id}/guidance",
@@ -198,10 +230,12 @@ async def test_message_history_pagination_and_guidance_are_participant_safe(
         headers=_authorization(joined["session_token"]),
     )
     assert [item["text"] for item in creator_guidance.json()["data"]["guidance"]] == [
-        "creator-only guidance"
+        "creator-only Swedish sender guidance",
+        "creator-only Swedish recipient guidance",
     ]
     assert [item["text"] for item in invitee_guidance.json()["data"]["guidance"]] == [
-        "invitee-only guidance"
+        "invitee-only English recipient guidance",
+        "invitee-only English sender guidance",
     ]
     assert "seen_at" not in creator_guidance.json()["data"]["guidance"][0]
 

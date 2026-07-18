@@ -149,6 +149,74 @@ test("successful send refreshes and shows processing", async ({ page }) => {
   await expect(page.getByLabel("Message")).toHaveValue("")
 })
 
+test("polling preserves each sender original while recipients see only their translation", async ({ context }) => {
+  const englishPage = await context.newPage()
+  const swedishPage = await context.newPage()
+  const englishOriginal = "CONTROL TEST: I need five quiet minutes before we continue."
+  const swedishTranslation = "KONTROLLTEST: Jag behöver fem tysta minuter innan vi fortsätter."
+  const swedishOriginal = "Jag är redo att fortsätta nu."
+  const englishTranslation = "I am ready to continue now."
+  let englishPolls = 0
+  let swedishPolls = 0
+
+  await installSession(englishPage)
+  await installSession(swedishPage, { ...session, participantId: "33333333-3333-4333-8333-333333333333", token: "tab-b-secret-token" })
+  await mockRoom(englishPage)
+  await mockRoom(swedishPage)
+
+  await englishPage.unroute(`**/api/v1/conversations/${session.conversationId}/messages?limit=100`)
+  await englishPage.route(`**/api/v1/conversations/${session.conversationId}/messages?limit=100`, (route) => {
+    englishPolls += 1
+    return route.fulfill({
+      json: {
+        success: true,
+        data: {
+          messages: [
+            { id: "english-out", sender_id: session.participantId, sender_display_name: "Hasse", direction: "outgoing", original_message: englishOriginal, mediated_message: englishPolls === 1 ? null : swedishTranslation, status: englishPolls === 1 ? "processing" : "delivered", created_at: "2026-07-18T10:00:00Z", delivered_at: englishPolls === 1 ? null : "2026-07-18T10:00:02Z" },
+            { id: "swedish-in", sender_id: "33333333-3333-4333-8333-333333333333", sender_display_name: "Test", direction: "incoming", original_message: "RAW SWEDISH SECRET", mediated_message: englishTranslation, status: "delivered", created_at: "2026-07-18T10:01:00Z", delivered_at: "2026-07-18T10:01:02Z" },
+          ],
+          has_more: false,
+          next_cursor: null,
+        },
+      },
+    })
+  })
+
+  await swedishPage.unroute(`**/api/v1/conversations/${session.conversationId}/messages?limit=100`)
+  await swedishPage.route(`**/api/v1/conversations/${session.conversationId}/messages?limit=100`, (route) => {
+    swedishPolls += 1
+    return route.fulfill({
+      json: {
+        success: true,
+        data: {
+          messages: [
+            { id: "english-in", sender_id: session.participantId, sender_display_name: "Hasse", direction: "incoming", original_message: "RAW ENGLISH SECRET", mediated_message: swedishTranslation, status: "delivered", created_at: "2026-07-18T10:00:00Z", delivered_at: "2026-07-18T10:00:02Z" },
+            { id: "swedish-out", sender_id: "33333333-3333-4333-8333-333333333333", sender_display_name: "Test", direction: "outgoing", original_message: swedishOriginal, mediated_message: swedishPolls === 1 ? null : englishTranslation, status: swedishPolls === 1 ? "processing" : "delivered", created_at: "2026-07-18T10:01:00Z", delivered_at: swedishPolls === 1 ? null : "2026-07-18T10:01:02Z" },
+          ],
+          has_more: false,
+          next_cursor: null,
+        },
+      },
+    })
+  })
+
+  await englishPage.goto("/")
+  await swedishPage.goto("/")
+  await expect(englishPage.getByText(englishOriginal)).toBeVisible()
+  await expect(swedishPage.getByText(swedishOriginal)).toBeVisible()
+  await expect.poll(() => englishPolls).toBeGreaterThanOrEqual(3)
+  await expect.poll(() => swedishPolls).toBeGreaterThanOrEqual(3)
+
+  await expect(englishPage.getByText(englishOriginal)).toBeVisible()
+  await expect(englishPage.getByText(englishTranslation)).toBeVisible()
+  await expect(englishPage.getByText(swedishTranslation)).toHaveCount(0)
+  await expect(englishPage.getByText("RAW SWEDISH SECRET")).toHaveCount(0)
+  await expect(swedishPage.getByText(swedishOriginal)).toBeVisible()
+  await expect(swedishPage.getByText(swedishTranslation)).toBeVisible()
+  await expect(swedishPage.getByText(englishTranslation)).toHaveCount(0)
+  await expect(swedishPage.getByText("RAW ENGLISH SECRET")).toHaveCount(0)
+})
+
 test("incoming rendering ignores original_message and shows returned private guidance", async ({ page }) => {
   await installSession(page)
   const messageId = "message-incoming"
