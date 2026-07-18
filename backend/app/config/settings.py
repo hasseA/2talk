@@ -2,7 +2,7 @@
 
 from functools import lru_cache
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     app_env: str
     database_url: str
     openai_api_key: SecretStr
+    openai_model: str = "gpt-5-mini"
+    openai_timeout_seconds: float = Field(default=30.0, gt=0)
+    openai_max_output_tokens: int = Field(default=2000, gt=0)
     session_token_secret: SecretStr
     invitation_token_secret: SecretStr
 
