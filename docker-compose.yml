@@ -7,6 +7,11 @@ services:
       APP_ENV: development
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/twotalk
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5-mini}
+      OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-30}
+      AI_JOB_LEASE_SECONDS: ${AI_JOB_LEASE_SECONDS:-60}
+      AI_JOB_POLL_INTERVAL_SECONDS: ${AI_JOB_POLL_INTERVAL_SECONDS:-1}
+      AI_ATTEMPT_STALE_SECONDS: ${AI_ATTEMPT_STALE_SECONDS:-60}
       SESSION_TOKEN_SECRET: ${SESSION_TOKEN_SECRET:-development-session-secret-change-me}
       INVITATION_TOKEN_SECRET: ${INVITATION_TOKEN_SECRET:-development-invitation-secret-change-me}
     ports:
@@ -17,6 +22,28 @@ services:
     volumes:
       - ./backend:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  ai-worker:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/twotalk
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5-mini}
+      OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-30}
+      AI_JOB_LEASE_SECONDS: ${AI_JOB_LEASE_SECONDS:-60}
+      AI_JOB_POLL_INTERVAL_SECONDS: ${AI_JOB_POLL_INTERVAL_SECONDS:-1}
+      AI_ATTEMPT_STALE_SECONDS: ${AI_ATTEMPT_STALE_SECONDS:-60}
+      SESSION_TOKEN_SECRET: ${SESSION_TOKEN_SECRET:-development-session-secret-change-me}
+      INVITATION_TOKEN_SECRET: ${INVITATION_TOKEN_SECRET:-development-invitation-secret-change-me}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: python -m app.workers.ai_mediation_worker
 
   frontend:
     build:

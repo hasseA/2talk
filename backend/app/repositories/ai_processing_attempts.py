@@ -19,6 +19,7 @@ class AIProcessingAttemptRepository(BaseRepository[AIProcessingAttempt]):
         attempt_number: int,
         provider: str,
         model: str,
+        execution_lease_token: UUID | None = None,
     ) -> AIProcessingAttempt:
         return await self.add(
             AIProcessingAttempt(
@@ -27,6 +28,7 @@ class AIProcessingAttemptRepository(BaseRepository[AIProcessingAttempt]):
                 provider=provider,
                 model=model,
                 status=ProcessingAttemptStatus.STARTED,
+                execution_lease_token=execution_lease_token,
             )
         )
 

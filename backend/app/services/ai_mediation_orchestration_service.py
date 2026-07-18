@@ -1,6 +1,7 @@
 """Three-phase, retry-safe orchestration for one mediated message."""
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import StrEnum
 from uuid import UUID
 
@@ -32,6 +33,7 @@ from app.models import (
     ProcessingAttemptStatus,
 )
 from app.repositories import (
+    AIMediationJobRepository,
     AIProcessingAttemptRepository,
     ConversationRepository,
     MessageDeliveryRepository,
@@ -76,6 +78,7 @@ class _ClaimedMediation:
     attempt_id: UUID
     recipient_id: UUID
     request: MediationRequest
+    execution_lease_token: UUID | None
 
 
 class AIMediationOrchestrationService:
@@ -88,6 +91,7 @@ class AIMediationOrchestrationService:
         *,
         provider_name: str,
         model: str,
+        execution_lease_token: UUID | None = None,
     ) -> None:
         if not provider_name.strip() or not model.strip():
             raise ValueError("provider_name and model must not be blank")
@@ -95,6 +99,7 @@ class AIMediationOrchestrationService:
         self.provider = provider
         self.provider_name = provider_name
         self.model = model
+        self.execution_lease_token = execution_lease_token
 
     async def process_message(self, message_id: UUID) -> MediationOutcome:
         """Process one eligible message through the three transaction phases."""
@@ -116,6 +121,7 @@ class AIMediationOrchestrationService:
         self, message_id: UUID
     ) -> _ClaimedMediation | MediationOutcome:
         async with self.session.begin():
+            lease_is_current = await self._lock_execution_lease(message_id)
             messages = MessageRepository(self.session)
             attempts = AIProcessingAttemptRepository(self.session)
             conversations = ConversationRepository(self.session)
@@ -124,6 +130,8 @@ class AIMediationOrchestrationService:
             message = await messages.get_by_id_for_update(message_id)
             if message is None:
                 raise MessageNotFoundError
+            if not lease_is_current:
+                return self._outcome(message, MediationOutcomeStatus.STALE_ATTEMPT)
             if message.status in (MessageStatus.DELIVERED, MessageStatus.BLOCKED):
                 return self._outcome(message, MediationOutcomeStatus.ALREADY_FINALIZED)
             if message.status is not MessageStatus.PROCESSING:
@@ -144,14 +152,15 @@ class AIMediationOrchestrationService:
                     attempt_id=latest.id,
                 )
 
-            expected_attempt_number = message.retry_count + 1
-            if latest is not None and latest.attempt_number != message.retry_count:
-                raise MessageStateError
+            expected_attempt_number = (
+                latest.attempt_number + 1 if latest is not None else 1
+            )
             attempt = await attempts.create_attempt(
                 message_id=message.id,
                 attempt_number=expected_attempt_number,
                 provider=self.provider_name,
                 model=self.model,
+                execution_lease_token=self.execution_lease_token,
             )
             context = await messages.list_mediated_context(
                 conversation_id=message.conversation_id,
@@ -178,6 +187,7 @@ class AIMediationOrchestrationService:
                 attempt_id=attempt.id,
                 recipient_id=recipient.id,
                 request=request,
+                execution_lease_token=self.execution_lease_token,
             )
 
     async def _finalize_delivered(
@@ -186,6 +196,8 @@ class AIMediationOrchestrationService:
         assert result.mediated_message is not None
         assert result.delivered_language is not None
         async with self.session.begin():
+            if not await self._lock_execution_lease(claim.message_id):
+                return await self._stale_lease_outcome(claim.message_id)
             current = await self._lock_current_attempt(claim)
             if isinstance(current, MediationOutcome):
                 return current
@@ -243,6 +255,8 @@ class AIMediationOrchestrationService:
         self, claim: _ClaimedMediation, result: MediationResult
     ) -> MediationOutcome:
         async with self.session.begin():
+            if not await self._lock_execution_lease(claim.message_id):
+                return await self._stale_lease_outcome(claim.message_id)
             current = await self._lock_current_attempt(claim)
             if isinstance(current, MediationOutcome):
                 return current
@@ -273,6 +287,8 @@ class AIMediationOrchestrationService:
     ) -> MediationOutcome:
         failure_code = self._failure_code(error)
         async with self.session.begin():
+            if not await self._lock_execution_lease(claim.message_id):
+                return await self._stale_lease_outcome(claim.message_id)
             current = await self._lock_current_attempt(claim)
             if isinstance(current, MediationOutcome):
                 return current
@@ -290,6 +306,26 @@ class AIMediationOrchestrationService:
                 MediationOutcomeStatus.FAILED,
                 attempt_id=attempt.id,
             )
+
+    async def _lock_execution_lease(self, message_id: UUID) -> bool:
+        if self.execution_lease_token is None:
+            return True
+        repository = AIMediationJobRepository(self.session)
+        job = await repository.get_by_message_id_for_update(message_id)
+        return bool(
+            job is not None
+            and repository.lease_is_current(
+                job,
+                lease_token=self.execution_lease_token,
+                now=datetime.now(UTC),
+            )
+        )
+
+    async def _stale_lease_outcome(self, message_id: UUID) -> MediationOutcome:
+        message = await MessageRepository(self.session).get_by_id_for_update(message_id)
+        if message is None:
+            raise MessageNotFoundError
+        return self._outcome(message, MediationOutcomeStatus.STALE_ATTEMPT)
 
     async def _lock_current_attempt(
         self, claim: _ClaimedMediation
@@ -400,6 +436,7 @@ def create_ai_mediation_orchestration_service(
     *,
     provider_name: str,
     model: str,
+    execution_lease_token: UUID | None = None,
 ) -> AIMediationOrchestrationService:
     """Construct orchestration behind provider-independent dependencies."""
     return AIMediationOrchestrationService(
@@ -407,4 +444,5 @@ def create_ai_mediation_orchestration_service(
         provider,
         provider_name=provider_name,
         model=model,
+        execution_lease_token=execution_lease_token,
     )

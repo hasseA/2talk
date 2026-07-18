@@ -7,6 +7,7 @@ from app.models.enums import (
     ConversationStatus,
     GuidanceAudience,
     GuidanceType,
+    MediationJobStatus,
     MessageStatus,
     ParticipantRole,
     ProcessingAttemptStatus,
@@ -14,6 +15,7 @@ from app.models.enums import (
 )
 from app.models.guidance import PrivateGuidance
 from app.models.invitation import Invitation
+from app.models.mediation_job import AIMediationJob
 from app.models.message import Message
 from app.models.participant import Participant
 from app.models.safety import SafetyEvent
@@ -22,6 +24,7 @@ from app.models.summary import ConversationSummary
 
 __all__ = [
     "AIProcessingAttempt",
+    "AIMediationJob",
     "Conversation",
     "ConversationStatus",
     "ConversationSummary",
@@ -30,6 +33,7 @@ __all__ = [
     "Invitation",
     "Message",
     "MessageDelivery",
+    "MediationJobStatus",
     "MessageStatus",
     "Participant",
     "ParticipantRole",

@@ -30,6 +30,14 @@ class ProcessingAttemptStatus(StrEnum):
     REJECTED = "rejected"
 
 
+class MediationJobStatus(StrEnum):
+    QUEUED = "queued"
+    LEASED = "leased"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    DEAD = "dead"
+
+
 class GuidanceAudience(StrEnum):
     SENDER = "sender"
     RECIPIENT = "recipient"

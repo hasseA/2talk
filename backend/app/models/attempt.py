@@ -72,5 +72,6 @@ class AIProcessingAttempt(Base):
     prompt_tokens: Mapped[int | None] = mapped_column(Integer)
     completion_tokens: Mapped[int | None] = mapped_column(Integer)
     total_tokens: Mapped[int | None] = mapped_column(Integer)
+    execution_lease_token: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
 
     message: Mapped["Message"] = relationship(back_populates="processing_attempts")

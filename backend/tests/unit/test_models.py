@@ -4,6 +4,7 @@ from sqlalchemy.orm import configure_mappers
 
 from app.database.base import Base
 from app.models import (
+    AIMediationJob,
     AIProcessingAttempt,
     Conversation,
     ConversationSummary,
@@ -17,6 +18,7 @@ from app.models import (
 )
 
 EXPECTED_TABLES = {
+    "ai_mediation_jobs",
     "ai_processing_attempts",
     "conversation_summaries",
     "conversations",
@@ -35,6 +37,7 @@ def test_all_models_can_be_imported_and_mapped() -> None:
     assert all(
         model.__table__.name in EXPECTED_TABLES
         for model in (
+            AIMediationJob,
             AIProcessingAttempt,
             Conversation,
             ConversationSummary,

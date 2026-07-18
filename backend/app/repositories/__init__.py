@@ -1,5 +1,6 @@
 """Async SQLAlchemy repositories for the 2talk database model."""
 
+from app.repositories.ai_mediation_jobs import AIMediationJobRepository
 from app.repositories.ai_processing_attempts import AIProcessingAttemptRepository
 from app.repositories.conversation_summaries import ConversationSummaryRepository
 from app.repositories.conversations import ConversationRepository
@@ -18,6 +19,7 @@ from app.repositories.safety_events import SafetyEventRepository
 
 __all__ = [
     "AIProcessingAttemptRepository",
+    "AIMediationJobRepository",
     "ConversationRepository",
     "ConversationSummaryRepository",
     "IncomingMessageProjection",

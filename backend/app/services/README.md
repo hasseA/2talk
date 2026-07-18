@@ -24,7 +24,6 @@ expiry timestamp: if a process dies after claiming and before finalization, the
 message remains processing until an operational recovery mechanism is added in a
 later execution milestone.
 
-The API boundary does not invoke orchestration yet. Message creation and retry
-retain their documented immediate `processing` responses; a later durable
-execution mechanism can call the orchestration service without changing those
-HTTP contracts.
+Message creation and retry retain their documented immediate `processing`
+responses while atomically enqueueing the durable PostgreSQL job. The separate
+AI worker invokes orchestration; FastAPI does not run an in-process worker.

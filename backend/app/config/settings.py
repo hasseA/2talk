@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-5-mini"
     openai_timeout_seconds: float = Field(default=30.0, gt=0)
     openai_max_output_tokens: int = Field(default=2000, gt=0)
+    ai_job_lease_seconds: float = Field(default=60.0, gt=0)
+    ai_job_poll_interval_seconds: float = Field(default=1.0, gt=0)
+    ai_attempt_stale_seconds: float = Field(default=60.0, gt=0)
     session_token_secret: SecretStr
     invitation_token_secret: SecretStr
 
@@ -24,6 +27,14 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    def model_post_init(self, _context: object) -> None:
+        """Require a lease long enough for the provider timeout and finalization."""
+        if self.ai_job_lease_seconds <= self.openai_timeout_seconds + 5:
+            raise ValueError(
+                "AI_JOB_LEASE_SECONDS must exceed OPENAI_TIMEOUT_SECONDS by "
+                "more than 5 seconds"
+            )
 
 
 @lru_cache

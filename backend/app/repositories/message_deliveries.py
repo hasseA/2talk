@@ -37,6 +37,14 @@ class MessageDeliveryRepository(BaseRepository[MessageDelivery]):
             )
         )
 
+    async def exists_for_message(self, message_id: UUID) -> bool:
+        statement = select(
+            select(MessageDelivery.id)
+            .where(MessageDelivery.message_id == message_id)
+            .exists()
+        )
+        return bool(await self.session.scalar(statement))
+
     async def mark_seen(
         self, delivery: MessageDelivery, *, seen_at: datetime | None = None
     ) -> MessageDelivery:

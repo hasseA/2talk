@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from app.models.conversation import Conversation
     from app.models.delivery import MessageDelivery
     from app.models.guidance import PrivateGuidance
+    from app.models.mediation_job import AIMediationJob
     from app.models.participant import Participant
     from app.models.safety import SafetyEvent
 
@@ -110,6 +111,9 @@ class Message(Base):
     )
     processing_attempts: Mapped[list["AIProcessingAttempt"]] = relationship(
         back_populates="message", cascade="all, delete-orphan"
+    )
+    mediation_job: Mapped["AIMediationJob | None"] = relationship(
+        back_populates="message", cascade="all, delete-orphan", uselist=False
     )
     private_guidance: Mapped[list["PrivateGuidance"]] = relationship(
         back_populates="message", cascade="all, delete-orphan"

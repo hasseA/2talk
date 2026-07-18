@@ -14,6 +14,7 @@ from app.models import (
     MessageStatus,
 )
 from app.repositories import (
+    AIMediationJobRepository,
     ConversationRepository,
     MessageDeliveryRepository,
     MessageRepository,
@@ -83,6 +84,9 @@ class MessageLifecycleService:
                 client_message_id=client_message_id,
                 original_message=original_message,
                 original_language=original_language,
+            )
+            await AIMediationJobRepository(self.session).ensure_job_for_message(
+                message.id
             )
         return message
 
@@ -176,6 +180,9 @@ class MessageLifecycleService:
             updated.status = MessageStatus.PROCESSING
             updated.failure_code = None
             await repository.flush()
+            await AIMediationJobRepository(self.session).reactivate_for_message(
+                message_id
+            )
         return updated
 
     async def retry_failed_message(
@@ -205,6 +212,9 @@ class MessageLifecycleService:
             updated.status = MessageStatus.PROCESSING
             updated.failure_code = None
             await messages.flush()
+            await AIMediationJobRepository(self.session).reactivate_for_message(
+                message_id
+            )
         return updated
 
     @staticmethod
